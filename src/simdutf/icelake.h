@@ -40,8 +40,7 @@
 // https://github.com/simdutf/simdutf/issues/1247
 #if ((SIMDUTF_IMPLEMENTATION_ICELAKE) && (SIMDUTF_IS_X86_64) && (__AVX2__) &&  \
      (SIMDUTF_HAS_AVX512F && SIMDUTF_HAS_AVX512DQ && SIMDUTF_HAS_AVX512VL &&   \
-      SIMDUTF_HAS_AVX512VBMI2) &&                                              \
-     (!SIMDUTF_IS_32BITS))
+      SIMDUTF_HAS_AVX512VBMI2))
   #define SIMDUTF_CAN_ALWAYS_RUN_ICELAKE 1
 #else
   #define SIMDUTF_CAN_ALWAYS_RUN_ICELAKE 0

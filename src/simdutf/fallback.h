@@ -9,9 +9,7 @@
 // selected.
 #ifndef SIMDUTF_IMPLEMENTATION_FALLBACK
   #if SIMDUTF_CAN_ALWAYS_RUN_ARM64 || SIMDUTF_CAN_ALWAYS_RUN_ICELAKE ||        \
-      SIMDUTF_CAN_ALWAYS_RUN_HASWELL || SIMDUTF_CAN_ALWAYS_RUN_WESTMERE ||     \
-      SIMDUTF_CAN_ALWAYS_RUN_PPC64 || SIMDUTF_CAN_ALWAYS_RUN_RVV ||            \
-      SIMDUTF_CAN_ALWAYS_RUN_LSX || SIMDUTF_CAN_ALWAYS_RUN_LASX
+      SIMDUTF_CAN_ALWAYS_RUN_HASWELL || SIMDUTF_CAN_ALWAYS_RUN_WESTMERE
     #define SIMDUTF_IMPLEMENTATION_FALLBACK 0
   #else
     #define SIMDUTF_IMPLEMENTATION_FALLBACK 1
@@ -24,7 +22,7 @@
 
 namespace simdutf {
 /**
- * Fallback implementation (runs on any machine).
+ * Portable fallback implementation for supported architectures.
  */
 namespace fallback {} // namespace fallback
 } // namespace simdutf

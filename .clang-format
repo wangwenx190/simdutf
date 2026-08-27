@@ -1,4 +1,0 @@
-BasedOnStyle: LLVM
-SortIncludes: false
-InsertNewlineAtEOF: true
-IndentPPDirectives: BeforeHash

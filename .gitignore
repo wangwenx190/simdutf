@@ -1,27 +1,99 @@
-# common build directory
+# C++ objects and libs
+*.slo
+*.lo
+*.o
+*.a
+*.la
+*.lai
+*.so
+*.so.*
+*.dll
+*.dylib
 
-build
-build-*
-*-build-*
-*build
+# Qt-es
+object_script.*.Release
+object_script.*.Debug
+*_plugin_import.cpp
+/.qmake.cache
+/.qmake.stash
+*.pro.user
+*.pro.user.*
+*.qbs.user
+*.qbs.user.*
+*.moc
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+ui_*.h
+*.qmlc
+*.jsc
+Makefile*
+*build-*
+*.qm
+*.prl
 
-# Visual Studio Code artifacts
-.vscode/*
-.history/
+# Qt unit tests
+target_wrapper.*
 
-# Python cache
+# QtCreator
+*.autosave
 
-__pycache__
+# QtCreator Qml
+*.qmlproject.user
+*.qmlproject.user.*
 
-# Amalgamated source files
+# QtCreator CMake
+CMakeLists.txt.user*
 
-singleheader/simdutf.cpp
-singleheader/simdutf.h
-singleheader/singleheader.zip
+# QtCreator 4.8< compilation database
+compile_commands.json
 
-# clangd cache folder
-.cache/clangd/
-corpus/
-
-# generated documentation
-README.generated.md
+# My
+[Bb]in/
+[Bb]in32/
+[Bb]in64/
+[Ll]ib/
+[Ll]ib32/
+[Ll]ib64/
+[Tt]est/
+[Tt]ests/
+[Ii]nstall/
+[Ii]nstall32/
+[Ii]nstall64/
+[Bb]uild*/
+[Oo]utput*/
+[Pp]ublish*/
+*.7z
+*.zip
+*.rar
+*.tar
+*.gz
+*.xz
+*.iso
+*.wim
+*.exe
+*.lib
+*.pdb
+*.ilk
+*.exp
+*.obj
+*.res
+*.rc
+!simdutf.rc
+*.bin
+*.run
+Thumbs.db
+build.user.bat
+build.user.sh
+user.conf
+.qmake.conf
+.cmake.conf
+.DS_Store
+.vscode/
+.vs/
+.idea/
+.cache/
+.clion/
+build_for_deploy/
+.qmlls.ini
+!buildtest.bat

@@ -146,9 +146,7 @@ namespace internal {
 #define SIMDUTF_SINGLE_IMPLEMENTATION                                          \
   (SIMDUTF_IMPLEMENTATION_ICELAKE + SIMDUTF_IMPLEMENTATION_HASWELL +           \
        SIMDUTF_IMPLEMENTATION_WESTMERE + SIMDUTF_IMPLEMENTATION_ARM64 +        \
-       SIMDUTF_IMPLEMENTATION_PPC64 + SIMDUTF_IMPLEMENTATION_LSX +             \
-       SIMDUTF_IMPLEMENTATION_LASX + SIMDUTF_IMPLEMENTATION_FALLBACK ==        \
-   1)
+       SIMDUTF_IMPLEMENTATION_FALLBACK == 1)
 
 #if SIMDUTF_IMPLEMENTATION_ICELAKE
   #if SIMDUTF_USE_STATIC_INITIALIZATION
@@ -194,50 +192,6 @@ static const arm64::implementation *get_arm64_singleton() {
   return &arm64_singleton;
 }
 #endif
-#if SIMDUTF_IMPLEMENTATION_PPC64
-  #if SIMDUTF_USE_STATIC_INITIALIZATION
-static const ppc64::implementation ppc64_singleton{};
-  #endif
-static const ppc64::implementation *get_ppc64_singleton() {
-  #if !SIMDUTF_USE_STATIC_INITIALIZATION
-  static const ppc64::implementation ppc64_singleton{};
-  #endif
-  return &ppc64_singleton;
-}
-#endif
-#if SIMDUTF_IMPLEMENTATION_RVV
-  #if SIMDUTF_USE_STATIC_INITIALIZATION
-static const rvv::implementation rvv_singleton{};
-  #endif
-static const rvv::implementation *get_rvv_singleton() {
-  #if !SIMDUTF_USE_STATIC_INITIALIZATION
-  static const rvv::implementation rvv_singleton{};
-  #endif
-  return &rvv_singleton;
-}
-#endif
-#if SIMDUTF_IMPLEMENTATION_LASX
-  #if SIMDUTF_USE_STATIC_INITIALIZATION
-static const lasx::implementation lasx_singleton{};
-  #endif
-static const lasx::implementation *get_lasx_singleton() {
-  #if !SIMDUTF_USE_STATIC_INITIALIZATION
-  static const lasx::implementation lasx_singleton{};
-  #endif
-  return &lasx_singleton;
-}
-#endif
-#if SIMDUTF_IMPLEMENTATION_LSX
-  #if SIMDUTF_USE_STATIC_INITIALIZATION
-static const lsx::implementation lsx_singleton{};
-  #endif
-static const lsx::implementation *get_lsx_singleton() {
-  #if !SIMDUTF_USE_STATIC_INITIALIZATION
-  static const lsx::implementation lsx_singleton{};
-  #endif
-  return &lsx_singleton;
-}
-#endif
 #if SIMDUTF_IMPLEMENTATION_FALLBACK
   #if SIMDUTF_USE_STATIC_INITIALIZATION
 static const fallback::implementation fallback_singleton{};
@@ -264,15 +218,6 @@ simdutf_really_inline static const implementation *get_single_implementation() {
   #endif
   #if SIMDUTF_IMPLEMENTATION_ARM64
   get_arm64_singleton();
-  #endif
-  #if SIMDUTF_IMPLEMENTATION_PPC64
-  get_ppc64_singleton();
-  #endif
-  #if SIMDUTF_IMPLEMENTATION_LASX
-  get_lasx_singleton();
-  #endif
-  #if SIMDUTF_IMPLEMENTATION_LSX
-  get_lsx_singleton();
   #endif
   #if SIMDUTF_IMPLEMENTATION_FALLBACK
   get_fallback_singleton();
@@ -912,18 +857,6 @@ static const std::initializer_list<const implementation *>
   #if SIMDUTF_IMPLEMENTATION_ARM64
         get_arm64_singleton(),
   #endif
-  #if SIMDUTF_IMPLEMENTATION_PPC64
-        get_ppc64_singleton(),
-  #endif
-  #if SIMDUTF_IMPLEMENTATION_RVV
-        get_rvv_singleton(),
-  #endif
-  #if SIMDUTF_IMPLEMENTATION_LASX
-        get_lasx_singleton(),
-  #endif
-  #if SIMDUTF_IMPLEMENTATION_LSX
-        get_lsx_singleton(),
-  #endif
   #if SIMDUTF_IMPLEMENTATION_FALLBACK
         get_fallback_singleton(),
   #endif
@@ -945,18 +878,6 @@ get_available_implementation_pointers() {
   #endif
   #if SIMDUTF_IMPLEMENTATION_ARM64
           get_arm64_singleton(),
-  #endif
-  #if SIMDUTF_IMPLEMENTATION_PPC64
-          get_ppc64_singleton(),
-  #endif
-  #if SIMDUTF_IMPLEMENTATION_RVV
-          get_rvv_singleton(),
-  #endif
-  #if SIMDUTF_IMPLEMENTATION_LASX
-          get_lasx_singleton(),
-  #endif
-  #if SIMDUTF_IMPLEMENTATION_LSX
-          get_lsx_singleton(),
   #endif
   #if SIMDUTF_IMPLEMENTATION_FALLBACK
           get_fallback_singleton(),
