@@ -109,100 +109,13 @@
   #define SIMDUTF_IS_X86_64 1
 #elif defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC)
   #define SIMDUTF_IS_ARM64 1
-#elif defined(__PPC64__) || defined(_M_PPC64)
-  #if defined(__VEC__) && defined(__ALTIVEC__)
-    #define SIMDUTF_IS_PPC64 1
-  #endif
-#elif defined(__s390__)
-// s390 IBM system. Big endian.
-#elif (defined(__riscv) || defined(__riscv__)) && __riscv_xlen == 64
-  // RISC-V 64-bit
-  #define SIMDUTF_IS_RISCV64 1
-
-  // #if __riscv_v_intrinsic >= 1000000
-  //   #define SIMDUTF_HAS_RVV_INTRINSICS 1
-  //   #define SIMDUTF_HAS_RVV_TARGET_REGION 1
-  // #elif ...
-  //  Check for special compiler versions that implement pre v1.0 intrinsics
-  #if __riscv_v_intrinsic >= 11000
-    #define SIMDUTF_HAS_RVV_INTRINSICS 1
-  #endif
-
-  #define SIMDUTF_HAS_ZVBB_INTRINSICS                                          \
-    0 // there is currently no way to detect this
-
-  #if SIMDUTF_HAS_RVV_INTRINSICS && __riscv_vector &&                          \
-      __riscv_v_min_vlen >= 128 && __riscv_v_elen >= 64
-    // RISC-V V extension
-    #define SIMDUTF_IS_RVV 1
-    #if SIMDUTF_HAS_ZVBB_INTRINSICS && __riscv_zvbb >= 1000000
-      // RISC-V Vector Basic Bit-manipulation
-      #define SIMDUTF_IS_ZVBB 1
-    #endif
-  #endif
-
-#elif defined(__loongarch_lp64)
-  #if defined(__loongarch_sx) && defined(__loongarch_asx)
-    #define SIMDUTF_IS_LSX 1
-    #define SIMDUTF_IS_LASX 1 // We can always run both
-  #elif defined(__loongarch_sx)
-    #define SIMDUTF_IS_LSX 1
-    // Adjust for runtime dispatching support.
-    #if defined(__GNUC__) && !defined(__clang__) &&                            \
-        !defined(__INTEL_COMPILER) && !defined(__NVCOMPILER)
-      #if __GNUC__ > 15 || (__GNUC__ == 15 && __GNUC_MINOR__ >= 0)
-        // We are ok, we will support runtime dispatch for LASX.
-      #else
-        // We disable runtime dispatch for LASX, which means that we will not be
-        // able to use LASX even if it is supported by the hardware. Loongson
-        // users should update to GCC 15 or better.
-        #define SIMDUTF_IMPLEMENTATION_LASX 0
-      #endif
-    #else
-      // We are not using GCC, so we assume that we can support runtime dispatch
-      // for LASX. https://godbolt.org/z/jcMnrjYhs
-      #define SIMDUTF_IMPLEMENTATION_LASX 0
-    #endif
-  #endif
 #else
-  // The simdutf library is designed
-  // for 64-bit processors and it seems that you are not
-  // compiling for a known 64-bit platform. Please
-  // use a 64-bit target such as x64 or 64-bit ARM for best performance.
-  #define SIMDUTF_IS_32BITS 1
-
-  // We do not support 32-bit platforms, but it can be
-  // handy to identify them.
-  #if defined(_M_IX86) || defined(__i386__)
-    #define SIMDUTF_IS_X86_32BITS 1
-  #elif defined(__arm__) || defined(_M_ARM)
-    #define SIMDUTF_IS_ARM_32BITS 1
-  #elif defined(__PPC__) || defined(_M_PPC)
-    #define SIMDUTF_IS_PPC_32BITS 1
-  #endif
-
-#endif // defined(__x86_64__) || defined(_M_AMD64)
-
-#ifdef SIMDUTF_IS_32BITS
-  #ifndef SIMDUTF_NO_PORTABILITY_WARNING
-  // In the future, we may want to warn users of 32-bit systems that
-  // the simdutf does not support accelerated kernels for such systems.
-  #endif // SIMDUTF_NO_PORTABILITY_WARNING
-#endif   // SIMDUTF_IS_32BITS
+  #error "simdutf supports only 64-bit x86 and ARM targets"
+#endif
 
 // this is almost standard?
 #define SIMDUTF_STRINGIFY_IMPLEMENTATION_(a) #a
 #define SIMDUTF_STRINGIFY(a) SIMDUTF_STRINGIFY_IMPLEMENTATION_(a)
-
-// Our fast kernels require 64-bit systems.
-//
-// On 32-bit x86, we lack 64-bit popcnt, lzcnt, blsr instructions.
-// Furthermore, the number of SIMD registers is reduced.
-//
-// On 32-bit ARM, we would have smaller registers.
-//
-// The simdutf users should still have the fallback kernel. It is
-// slower, but it should run everywhere.
 
 //
 // Enable valid runtime implementations, and select
@@ -210,7 +123,7 @@
 //
 
 // We are going to use runtime dispatch.
-#if defined(SIMDUTF_IS_X86_64) || defined(SIMDUTF_IS_LSX)
+#if defined(SIMDUTF_IS_X86_64)
   #ifdef __clang__
     // clang does not have GCC push pop
     // warning: clang attribute push can't be used within a namespace in clang
@@ -227,7 +140,7 @@
     #define SIMDUTF_UNTARGET_REGION _Pragma("GCC pop_options")
   #endif // clang then gcc
 
-#endif // defined(SIMDUTF_IS_X86_64) || defined(SIMDUTF_IS_LSX)
+#endif // defined(SIMDUTF_IS_X86_64)
 
 // Default target region macros don't do anything.
 #ifndef SIMDUTF_TARGET_REGION

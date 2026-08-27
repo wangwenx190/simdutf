@@ -1,229 +1,168 @@
-cmake_minimum_required(VERSION 3.18)
+cmake_minimum_required(VERSION 4.0)
 
 project(simdutf
-  DESCRIPTION "Fast Unicode validation, transcoding and processing"
-  LANGUAGES C CXX
-  VERSION 9.1.0
+    VERSION 9.1.0
+    DESCRIPTION "Fast Unicode validation, transcoding and processing"
+    LANGUAGES CXX
 )
 
-include (TestBigEndian)
-TEST_BIG_ENDIAN(IS_BIG_ENDIAN)
-if(IS_BIG_ENDIAN)
-  message(STATUS "Big-endian system detected.")
+if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
+    message(FATAL_ERROR "simdutf supports only 64-bit targets.")
+endif()
+set(__target_processor "${CMAKE_SYSTEM_PROCESSOR}")
+if(MSVC AND CMAKE_CXX_COMPILER_ARCHITECTURE_ID)
+    set(__target_processor "${CMAKE_CXX_COMPILER_ARCHITECTURE_ID}")
+endif()
+string(TOLOWER "${__target_processor}" __target_processor)
+if(NOT __target_processor MATCHES "^(amd64|x64|x86_64|aarch64|arm64)$")
+    message(FATAL_ERROR
+        "simdutf supports only x86_64 and arm64 targets; got '${__target_processor}'."
+    )
 endif()
 
-include(GNUInstallDirs)
-# The following requires CMake 3.21.
-# if(PROJECT_IS_TOP_LEVEL)
-#  message(STATUS "Building simdutf as a top-level project.")
-#  include(CTest)
-#else()
-#  message(STATUS "Building simdutf as a subproject.")
-#endif(PROJECT_IS_TOP_LEVEL)
-include(CTest)
-include(cmake/simdutf-flags.cmake)
-
-set(SIMDUTF_LIB_VERSION "35.0.0" CACHE STRING "simdutf library version")
-set(SIMDUTF_LIB_SOVERSION "35" CACHE STRING "simdutf library soversion")
-option(SIMDUTF_TESTS "Whether the tests are included as part of the CMake Build." ON)
-option(SIMDUTF_FAST_TESTS "Whether parameters to the tests are adapted to make them execute quicker" OFF)
-option(SIMDUTF_TOOL_TESTS "Whether to tests the tools" OFF)
-option(SIMDUTF_ATOMIC_BASE64_TESTS "Whether to test the atomic base64 functions. (OFF by default)" OFF)
-option(SIMDUTF_BENCHMARKS "Whether the benchmarks are included as part of the CMake Build." OFF)
-option(SIMDUTF_TOOLS "Whether the tools are included as part of the CMake build. Requires C++17 or better." ON)
-option(SIMDUTF_ICONV "Whether to use iconv as part of the CMake build if available." ON)
-option(SIMDUTF_FUZZERS "Whether to build the fuzzers." OFF)
-option(SIMDUTF_COVERAGE "Enable code coverage collection during tests (only GCC and Clang)." OFF)
-option(SIMDUTF_INTERNAL_TESTS "Whether to test also internal procedures. Useful mostly for developers, not users." OFF)
-option(SIMDUTF_LOGGING "Whether to enable logging (this should never be used in binary releases)." OFF)
-option(SIMDUTF_USE_STATIC_INITIALIZATION "Whether to use translation-unit-scope static variables for implementation singletons (faster, but unsafe before main() when used in a library)." OFF)
-option(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION "Whether to enable unsafe fuzzing mode." OFF)
-
-set(SIMDUTF_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-
-add_subdirectory(src)
-add_subdirectory(singleheader)
-
-if (SIMDUTF_TESTS)
-  message(STATUS "The tests are enabled.")
-  add_subdirectory(tests)
-else(SIMDUTF_TESTS)
-  message(STATUS "The tests are disabled.")
-endif(SIMDUTF_TESTS)
-
-
-if (SIMDUTF_TOOLS)
-  if(CMAKE_CXX_COMPILER_ID MATCHES GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.0)
-    message(STATUS "The benchmark tool requires GCC 8.0 or better.")
-  else()
-    add_subdirectory(tools)
-  endif()
+if(WIN32)
+    enable_language(RC)
 endif()
+if(NOT DEFINED CMAKE_BUILD_TYPE AND NOT DEFINED CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE "Release")
+endif()
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+if(NOT "x${CMAKE_CXX_FLAGS}" STREQUAL "x")
+    if(MSVC)
+        string(REGEX REPLACE " [/-]W[01234] " " " CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+    else()
+        string(REGEX REPLACE " -W(all)?(extra)? " " " CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+        string(REGEX REPLACE " -[W]?pedantic " " " CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+    endif()
+endif()
+string(APPEND CMAKE_CXX_FLAGS " -w ")
 
-
-if (SIMDUTF_BENCHMARKS)
-  if(NOT SIMDUTF_TESTS)
-    message(STATUS "You have enabled the benchmarks, but not the tests. We don't allow running the benchmarks without the tests.")
-  elseif((CMAKE_CXX_COMPILER_ID MATCHES GNU) AND (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "8.0"))
-    message(STATUS "The benchmark tool requires GCC 8.0 or better.")
-  else()
-    message(STATUS "The benchmarks can be disabled by setting SIMDUTF_BENCHMARKS, e.g., -D SIMDUTF_BENCHMARKS=OFF.")
-    add_subdirectory(benchmarks)
-  endif()
+set(__top_level ON)
+if("x${CMAKE_SOURCE_DIR}" STREQUAL "x${PROJECT_SOURCE_DIR}")
+    message("SIMDUTF: Building as a top-level project.")
 else()
-  message(STATUS "The benchmarks can be enabled by setting SIMDUTF_BENCHMARKS, e.g., -D SIMDUTF_BENCHMARKS=ON.")
+    set(__top_level OFF)
+    message("SIMDUTF: Building as a subproject.")
 endif()
 
-if (SIMDUTF_COVERAGE)
-  if (NOT SIMDUTF_TESTS)
-    message(FATAL_ERROR "Cannot enable code coverage without tests (enable SIMDUTF_TESTS option)")
-  endif()
-  if (NOT ((CMAKE_CXX_COMPILER_ID MATCHES "GNU") OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang")))
-    message(FATAL_ERROR "Code coverage is supported only by GCC and Clang")
-  endif()
-  message(STATUS "Code coverage enabled; use `ctest -T Test -T Coverage` to gather coverage details")
+option(SIMDUTF_BUILD_SHARED "Build shared library edition of simdutf." ON)
+option(SIMDUTF_BUILD_STATIC "Build static library edition of simdutf." ON)
+option(SIMDUTF_INSTALL "Enable installation for simdutf." OFF)
+if(NOT SIMDUTF_BUILD_SHARED AND NOT SIMDUTF_BUILD_STATIC)
+    message(SEND_ERROR "You MUST build either the shared library or the static library or both of them!")
 endif()
 
-message(STATUS "Compiling using the C++ standard:" ${CMAKE_CXX_STANDARD})
-# ---- Install rules ----
-add_library(simdutf::simdutf ALIAS simdutf)
+set(__targets)
+if(SIMDUTF_BUILD_SHARED)
+    add_library(${PROJECT_NAME}_shared SHARED)
+    add_library(${PROJECT_NAME}::${PROJECT_NAME}_shared ALIAS ${PROJECT_NAME}_shared)
+    set_target_properties(${PROJECT_NAME}_shared PROPERTIES
+        OUTPUT_NAME ${PROJECT_NAME}
+        WINDOWS_EXPORT_ALL_SYMBOLS ON
+    )
+    if(WIN32)
+        # CMake cannot generate an automatic export table from MSVC LTCG objects.
+        set_property(TARGET ${PROJECT_NAME}_shared PROPERTY
+            INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF
+        )
+    endif()
+    target_compile_definitions(${PROJECT_NAME}_shared
+        PRIVATE SIMDUTF_BUILDING_WINDOWS_DYNAMIC_LIBRARY=1
+        INTERFACE SIMDUTF_USING_WINDOWS_DYNAMIC_LIBRARY=1
+    )
+    if(WIN32)
+        target_sources(${PROJECT_NAME}_shared PRIVATE ${PROJECT_NAME}.rc)
+    endif()
+    list(APPEND __targets ${PROJECT_NAME}_shared)
+endif()
+if(SIMDUTF_BUILD_STATIC)
+    add_library(${PROJECT_NAME}_static STATIC)
+    add_library(${PROJECT_NAME}::${PROJECT_NAME}_static ALIAS ${PROJECT_NAME}_static)
+    list(APPEND __targets ${PROJECT_NAME}_static)
+endif()
+if(SIMDUTF_BUILD_SHARED AND NOT SIMDUTF_BUILD_STATIC)
+    add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME}_shared)
+endif()
+if(SIMDUTF_BUILD_STATIC AND NOT SIMDUTF_BUILD_SHARED)
+    add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME}_static)
+endif()
 
-set_target_properties(
-    simdutf PROPERTIES
-    VERSION "${SIMDUTF_LIB_VERSION}"
-    SOVERSION "${SIMDUTF_LIB_SOVERSION}"
-    WINDOWS_EXPORT_ALL_SYMBOLS YES
-)
-
-include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
-
-install(
-    FILES include/simdutf.h
-    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
-    COMPONENT simdutf_Development
+file(GLOB_RECURSE __headers LIST_DIRECTORIES false CONFIGURE_DEPENDS
+    "./include/*.h" "./src/*.h"
 )
-
-
-install(
-    FILES include/simdutf_c.h
-    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
-    COMPONENT simdutf_Development
-)
-
-install(
-    DIRECTORY include/simdutf
-    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
-    COMPONENT simdutf_Development
-)
-
-install(
-    TARGETS simdutf
-    EXPORT simdutfTargets
-    RUNTIME COMPONENT simdutf_Runtime
-    LIBRARY COMPONENT simdutf_Runtime
-    NAMELINK_COMPONENT simdutf_Development
-    ARCHIVE COMPONENT simdutf_Development
-    INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
-)
-
-configure_file(cmake/simdutf-config.cmake.in simdutf-config.cmake @ONLY)
-
-write_basic_package_version_file(
-    simdutf-config-version.cmake
-    COMPATIBILITY SameMinorVersion
-)
-
-set(
-    SIMDUTF_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/simdutf"
-    CACHE STRING "CMake package config location relative to the install prefix"
-)
-mark_as_advanced(SIMDUTF_INSTALL_CMAKEDIR)
-
-install(
-    FILES
-    "${PROJECT_BINARY_DIR}/simdutf-config.cmake"
-    "${PROJECT_BINARY_DIR}/simdutf-config-version.cmake"
-    DESTINATION "${SIMDUTF_INSTALL_CMAKEDIR}"
-    COMPONENT simdutf_Development
-)
-
-install(
-    EXPORT simdutfTargets
-    NAMESPACE simdutf::
-    DESTINATION "${SIMDUTF_INSTALL_CMAKEDIR}"
-    COMPONENT example_Development
-)
-
-
-# pkg-config
-include(cmake/JoinPaths.cmake)
-join_paths(PKGCONFIG_INCLUDEDIR "\${prefix}" "${CMAKE_INSTALL_INCLUDEDIR}")
-join_paths(PKGCONFIG_LIBDIR "\${prefix}" "${CMAKE_INSTALL_LIBDIR}")
-
-configure_file("simdutf.pc.in" "simdutf.pc" @ONLY)
-install(
-    FILES "${CMAKE_CURRENT_BINARY_DIR}/simdutf.pc"
-    DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig"
-)
-#
-# CPack
-#
-if(is_top_project)
-  set(CPACK_PACKAGE_VENDOR "Daniel Lemire")
-  set(CPACK_PACKAGE_CONTACT "lemire@gmail.com")
-  set(CPACK_RESOURCE_FILE_LICENSE "${PROJECT_SOURCE_DIR}/LICENSE-MIT")
-  set(CPACK_RPM_PACKAGE_LICENSE "${PROJECT_SOURCE_DIR}/LICENSE-MIT")
-  set(CPACK_RESOURCE_FILE_README "${PROJECT_SOURCE_DIR}/README.md")
-  set(CPACK_SOURCE_GENERATOR "TGZ;ZIP")
-  include(CPack)
-endif()
-
-# ----
-
-
-
-if(SIMDUTF_TESTS AND NOT SIMDUTF_SANITIZE)
-  find_program(GREP grep)
-  find_program(NM nm)
-  if((NOT GREP) OR (NOT NM))
-    message("grep and nm are unavailable on this system.")
-  else()
-    add_test(
-      NAME "avoid_abort"
-      # Under FreeBSD, the __cxa_guard_abort symbol may appear but it is fine.
-      # So we want to look for <space><possibly _>abort as a test.
-      COMMAND sh -c "${NM}  $<TARGET_FILE_NAME:simdutf> |  ${GREP} ' _*abort' || exit 0  && exit 1"
-      WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
+set(__sources ${__headers} src/simdutf.cpp)
+foreach(__target IN LISTS __targets)
+    target_sources(${__target} PRIVATE ${__sources})
+    target_include_directories(${__target}
+        PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
+        PUBLIC
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     )
-    add_test(
-      NAME "avoid_cout"
-      COMMAND sh -c "${NM}  $<TARGET_FILE_NAME:simdutf> |  ${GREP} ' _*cout' || exit 0  && exit 1"
-      WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
-    )
-    add_test(
-      NAME "avoid_cerr"
-      COMMAND sh -c "${NM}  $<TARGET_FILE_NAME:simdutf> |  ${GREP} ' _*cerr' || exit 0  && exit 1"
-      WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
-    )
-    add_test(
-      NAME "avoid_printf"
-      COMMAND sh -c "${NM}  $<TARGET_FILE_NAME:simdutf> |  ${GREP} ' _*printf' || exit 0  && exit 1"
-      WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
-    )
-    add_test(
-      NAME "avoid_stdout"
-      COMMAND sh -c "${NM}  $<TARGET_FILE_NAME:simdutf> |  ${GREP} stdout || exit 0 && exit 1"
-      WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
-    )
-    add_test(
-      NAME "avoid_stderr"
-      COMMAND sh -c "${NM}  $<TARGET_FILE_NAME:simdutf> |  ${GREP} stderr || exit 0 && exit 1"
-      WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
-    )
-  endif()
-endif()
+    if(__top_level)
+        if(WIN32)
+            target_compile_definitions(${__target} PRIVATE
+                UNICODE _UNICODE
+                NOMINMAX
+                WIN32_LEAN_AND_MEAN
+            )
+        endif()
+        if(MSVC)
+            target_compile_options(${__target} PRIVATE
+                /utf-8 /permissive-
+                $<$<NOT:$<CONFIG:Debug>>:/Gw /Gy /Zc:inline>
+            )
+            target_link_options(${__target} PRIVATE
+                $<$<NOT:$<CONFIG:Debug>>:/OPT:REF /OPT:ICF>
+            )
+        else()
+            target_compile_options(${__target} PRIVATE
+                $<$<NOT:$<CONFIG:Debug>>:-ffunction-sections -fdata-sections>
+            )
+            if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
+                    AND __target_processor MATCHES "^(amd64|x64|x86_64)$")
+                target_compile_options(${__target} PRIVATE
+                    -mno-avx256-split-unaligned-load
+                    -mno-avx256-split-unaligned-store
+                )
+            endif()
+            if(APPLE)
+                target_link_options(${__target} PRIVATE
+                    $<$<NOT:$<CONFIG:Debug>>:-Wl,-dead_strip>
+                )
+            else()
+                target_link_options(${__target} PRIVATE
+                    $<$<NOT:$<CONFIG:Debug>>:-Wl,--gc-sections>
+                )
+            endif()
+        endif()
+    endif()
+    set_target_properties(${__target} PROPERTIES VERSION 35.0.0)
+    get_target_property(__type ${__target} TYPE)
+    if(NOT "x${__type}" STREQUAL "xSTATIC_LIBRARY")
+        set_target_properties(${__target} PROPERTIES SOVERSION 35)
+    endif()
+    if(SIMDUTF_INSTALL)
+        install(TARGETS ${__target}
+            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        )
+    endif()
+endforeach()
 
-if(SIMDUTF_FUZZERS)
-    add_subdirectory(fuzz)
+if(SIMDUTF_INSTALL)
+    install(
+        FILES include/simdutf.h include/simdutf_c.h
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    )
+    install(
+        DIRECTORY include/simdutf
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        FILES_MATCHING PATTERN "*.h"
+    )
 endif()

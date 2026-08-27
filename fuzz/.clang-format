@@ -1,9 +1,0 @@
----
-Language:        Cpp
-BasedOnStyle:  LLVM
-PointerAlignment: Left
-Standard:        Latest
-SortIncludes:    false
-ReflowComments:  true
-...
-

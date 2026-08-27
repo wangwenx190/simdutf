@@ -47,7 +47,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #define SIMDutf_INTERNAL_ISADETECTION_H
 
 #include <cstdint>
-#include <cstdlib>
 #if defined(_MSC_VER)
   #include <intrin.h>
 #elif (defined(HAVE_GCC_GET_CPUID) && defined(USE_GCC_GET_CPUID)) ||           \
@@ -61,27 +60,6 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "simdutf/portability.h"
 
-// RISC-V ISA detection utilities
-#if SIMDUTF_IS_RISCV64 && defined(__linux__)
-  #include <unistd.h> // for syscall
-// We define these ourselves, for backwards compatibility
-struct simdutf_riscv_hwprobe {
-  int64_t key;
-  uint64_t value;
-};
-  #define simdutf_riscv_hwprobe(...) syscall(258, __VA_ARGS__)
-  #define SIMDUTF_RISCV_HWPROBE_KEY_IMA_EXT_0 4
-  #define SIMDUTF_RISCV_HWPROBE_IMA_V (1 << 2)
-  #define SIMDUTF_RISCV_HWPROBE_EXT_ZVBB (1 << 17)
-#endif // SIMDUTF_IS_RISCV64 && defined(__linux__)
-
-#if defined(__loongarch__) && defined(__linux__)
-  #include <sys/auxv.h>
-// bits/hwcap.h
-// #define HWCAP_LOONGARCH_LSX             (1 << 4)
-// #define HWCAP_LOONGARCH_LASX            (1 << 5)
-#endif
-
 namespace simdutf {
 namespace internal {
 
@@ -93,7 +71,6 @@ enum instruction_set {
   PCLMULQDQ = 0x10,
   BMI1 = 0x20,
   BMI2 = 0x40,
-  ALTIVEC = 0x80,
   AVX512F = 0x100,
   AVX512DQ = 0x200,
   AVX512IFMA = 0x400,
@@ -104,48 +81,9 @@ enum instruction_set {
   AVX512VL = 0x8000,
   AVX512VBMI2 = 0x10000,
   AVX512VPOPCNTDQ = 0x2000,
-  RVV = 0x4000,
-  ZVBB = 0x8000,
-  LSX = 0x40000,
-  LASX = 0x80000,
 };
 
-#if defined(__PPC64__)
-
-static inline uint32_t detect_supported_architectures() {
-  return instruction_set::ALTIVEC;
-}
-
-#elif SIMDUTF_IS_RISCV64
-
-static inline uint32_t detect_supported_architectures() {
-  uint32_t host_isa = instruction_set::DEFAULT;
-  #if SIMDUTF_IS_RVV
-  host_isa |= instruction_set::RVV;
-  #endif
-  #if SIMDUTF_IS_ZVBB
-  host_isa |= instruction_set::ZVBB;
-  #endif
-  #if defined(__linux__)
-  simdutf_riscv_hwprobe probes[] = {{SIMDUTF_RISCV_HWPROBE_KEY_IMA_EXT_0, 0}};
-  long ret = simdutf_riscv_hwprobe(&probes, sizeof probes / sizeof *probes, 0,
-                                   nullptr, 0);
-  if (ret == 0) {
-    uint64_t extensions = probes[0].value;
-    if (extensions & SIMDUTF_RISCV_HWPROBE_IMA_V)
-      host_isa |= instruction_set::RVV;
-    if (extensions & SIMDUTF_RISCV_HWPROBE_EXT_ZVBB)
-      host_isa |= instruction_set::ZVBB;
-  }
-  #endif
-  #if defined(RUN_IN_SPIKE_SIMULATOR)
-  // Proxy Kernel does not implement yet hwprobe syscall
-  host_isa |= instruction_set::RVV;
-  #endif
-  return host_isa;
-}
-
-#elif defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC)
+#if defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC)
 
 static inline uint32_t detect_supported_architectures() {
   return instruction_set::NEON;
@@ -302,30 +240,7 @@ static inline uint32_t detect_supported_architectures() {
   }
   return host_isa;
 }
-#elif defined(__loongarch__)
-
-static inline uint32_t detect_supported_architectures() {
-  uint32_t host_isa = instruction_set::DEFAULT;
-  #if defined(__linux__)
-  uint64_t hwcap = 0;
-  hwcap = getauxval(AT_HWCAP);
-  if (hwcap & HWCAP_LOONGARCH_LSX) {
-    host_isa |= instruction_set::LSX;
-  }
-  if (hwcap & HWCAP_LOONGARCH_LASX) {
-    host_isa |= instruction_set::LASX;
-  }
-  #endif
-  return host_isa;
-}
-#else // fallback
-
-// includes 32-bit ARM.
-static inline uint32_t detect_supported_architectures() {
-  return instruction_set::DEFAULT;
-}
-
-#endif // end SIMD extension detection code
+#endif // SIMD extension detection code
 
 } // namespace internal
 } // namespace simdutf
